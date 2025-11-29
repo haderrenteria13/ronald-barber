@@ -63,7 +63,7 @@ export default function ContactForm({
 
     try {
       const endTime = new Date(selectedDate.getTime() + serviceDuration * 60000);
-      const { data, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from("appointments")
         .insert([
           {
@@ -79,8 +79,6 @@ export default function ContactForm({
 
       if (insertError) throw insertError;
 
-      console.log("✅ Cita creada:", data);
-
       fetch('/api/send-confirmation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,12 +89,13 @@ export default function ContactForm({
           date: format(selectedDate, "EEEE d 'de' MMMM", { locale: es }),
           time: format(selectedDate, "h:mm aa"),
         }),
-      }).catch(err => console.error("Error enviando WhatsApp en segundo plano:", err));
+      }).catch(() => {
+      });
 
       onSuccess(formData.name);
-    } catch (err: any) {
-      console.error("❌ Error al crear cita:", err);
-      setError(err.message || "Error al crear la cita. Intenta de nuevo.");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Error al crear la cita. Intenta de nuevo.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -150,7 +149,7 @@ export default function ContactForm({
             Nombre completo <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <User className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <User className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               id="name"
@@ -168,7 +167,7 @@ export default function ContactForm({
             Teléfono <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="tel"
               id="phone"
@@ -198,7 +197,7 @@ export default function ContactForm({
             Notas adicionales (opcional)
           </label>
           <div className="relative">
-            <MessageSquare className="absolute right-4 top-4 w-5 h-5 text-gray-400" />
+            <MessageSquare className="absolute right-4 top-4 w-4 h-4 text-gray-400" />
             <textarea
               id="notes"
               value={formData.notes}
@@ -210,14 +209,12 @@ export default function ContactForm({
           </div>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
             {error}
           </div>
         )}
 
-        {/* Botones en columna */}
         <div className="flex flex-col gap-3 pt-6 pb-8">
           <button
             type="submit"
@@ -225,10 +222,10 @@ export default function ContactForm({
             className="w-full py-4 px-6 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-[0.98]"
           >
             {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Confirmando...
-              </>
+              <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                      Confirmando...
+                </div>
             ) : (
               "Confirmar Reserva"
             )}

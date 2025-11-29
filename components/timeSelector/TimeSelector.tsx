@@ -2,17 +2,26 @@
 "use client";
 import { useState, useEffect } from "react";
 import { 
-  addDays, format, setHours, setMinutes, addMinutes, isBefore, isEqual, startOfDay, endOfDay, isToday, isSameDay, parseISO 
+  addDays, format, setHours, setMinutes, addMinutes, isBefore, isEqual, startOfDay, endOfDay, isToday, getDay 
 } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 
 type Appointment = {
   start_time: string;
   end_time: string;
 };
+
+interface BusinessHour {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  break_start: string | null;
+  break_end: string | null;
+  is_active: boolean;
+}
 
 const getServiceImage = (name: string) => {
   const lowerName = name.toLowerCase();
@@ -28,6 +37,38 @@ interface TimeSelectorProps {
   onSelectTime: (date: Date) => void;
 }
 
+const TimeSlotSection = ({ title, slots, selectedTime, onSelectTime }: { 
+  title: string; 
+  slots: Date[];
+  selectedTime: Date | null;
+  onSelectTime: (time: Date) => void;
+}) => {
+  if (slots.length === 0) return null;
+  
+  return (
+    <div className="max-w-md mx-auto px-4 mb-6">
+      <h4 className="text-sm font-medium text-gray-500 mb-3">{title}</h4>
+      <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+        {slots.map((time, i) => {
+          const isSelected = selectedTime?.toISOString() === time.toISOString();
+          return (
+            <button
+              key={i}
+              onClick={() => onSelectTime(time)}
+              className={`py-2.5 px-1 rounded-xl text-xs font-bold transition-all text-center truncate
+                ${isSelected 
+                  ? "bg-blue-600 text-white shadow-md scale-105" 
+                  : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-100"
+                }`}
+            >
+              {format(time, 'h:mm aa')}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export default function TimeSelector({ 
   selectedServiceDuration, 
@@ -37,39 +78,86 @@ export default function TimeSelector({
 }: TimeSelectorProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [busySlots, setBusySlots] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
 
-  const WORK_START = 10;
-  const WORK_END = 20;
-  const AFTERNOON_START = 12;
+  const [businessHours, setBusinessHours] = useState<BusinessHour[]>([]);
+  const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [dayConfig, setDayConfig] = useState<BusinessHour | null>(null);
+  const [isDayBlocked, setIsDayBlocked] = useState(false);
 
   useEffect(() => {
-    const fetchAppointments = async () => {
+    const fetchConfig = async () => {
+      try {
+        const { data: hours } = await supabase.from("business_hours").select("*");
+        if (hours) setBusinessHours(hours);
+
+        const { data: blocked } = await supabase.from("blocked_dates").select("date");
+        if (blocked) setBlockedDates(blocked.map(b => b.date));
+      } catch {
+        // Error silencioso
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  useEffect(() => {
+    const updateDayConfig = async () => {
       setLoading(true);
-      const start = startOfDay(selectedDate).toISOString();
-      const end = endOfDay(selectedDate).toISOString();
+      
+      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      const isBlocked = blockedDates.includes(dateStr);
+      setIsDayBlocked(isBlocked);
 
-      const { data, error } = await supabase
-        .from('appointments')
-        .select('start_time, end_time')
-        .gte('start_time', start)
-        .lte('start_time', end);
+      const dayOfWeek = getDay(selectedDate);
+      const config = businessHours.find(h => h.day_of_week === dayOfWeek);
+      setDayConfig(config || null);
+      if (!isBlocked && config?.is_active) {
+        const start = startOfDay(selectedDate).toISOString();
+        const end = endOfDay(selectedDate).toISOString();
 
-      if (error) console.error(error);
-      setBusySlots(data || []);
+        const { data } = await supabase
+          .from('appointments')
+          .select('start_time, end_time')
+          .eq('status', 'confirmed')
+          .gte('start_time', start)
+          .lte('start_time', end);
+
+        setBusySlots(data || []);
+      } else {
+        setBusySlots([]);
+      }
+      
       setLoading(false);
     };
 
-    fetchAppointments();
-    setSelectedTime(null);
-  }, [selectedDate]);
+    if (businessHours.length > 0) {
+      updateDayConfig();
+    }
+  }, [selectedDate, businessHours, blockedDates]);
+
+
 
   const generateTimeSlots = () => {
+    if (!dayConfig || !dayConfig.is_active || isDayBlocked) return [];
+
     const slots = [];
-    let currentTime = setMinutes(setHours(selectedDate, WORK_START), 0);
-    const endTime = setMinutes(setHours(selectedDate, WORK_END), 0);
+    const [startHour, startMinute] = dayConfig.start_time.split(':').map(Number);
+    const [endHour, endMinute] = dayConfig.end_time.split(':').map(Number);
+
+    let currentTime = setMinutes(setHours(selectedDate, startHour), startMinute);
+    const endTime = setMinutes(setHours(selectedDate, endHour), endMinute);
     const now = new Date();
+
+    let breakStart: Date | null = null;
+    let breakEnd: Date | null = null;
+    
+    if (dayConfig.break_start && dayConfig.break_end) {
+      const [bStartH, bStartM] = dayConfig.break_start.split(':').map(Number);
+      const [bEndH, bEndM] = dayConfig.break_end.split(':').map(Number);
+      breakStart = setMinutes(setHours(selectedDate, bStartH), bStartM);
+      breakEnd = setMinutes(setHours(selectedDate, bEndH), bEndM);
+    }
 
     while (isBefore(currentTime, endTime)) {
       const slotEnd = addMinutes(currentTime, selectedServiceDuration);
@@ -79,25 +167,42 @@ export default function TimeSelector({
         continue;
       }
 
+      let inBreak = false;
+      if (breakStart && breakEnd) {
+        if (
+          (currentTime >= breakStart && currentTime < breakEnd) ||
+          (slotEnd > breakStart && slotEnd <= breakEnd)
+        ) {
+          inBreak = true;
+        }
+      }
+
+      if (inBreak) {
+        currentTime = addMinutes(currentTime, 30);
+        continue;
+      }
+
       const isBusy = busySlots.some((appt) => {
         const apptStart = new Date(appt.start_time);
         const apptEnd = new Date(appt.end_time);
-        return isBefore(currentTime, apptEnd) && isBefore(apptStart, slotEnd);
+        return (
+          (currentTime >= apptStart && currentTime < apptEnd) || 
+          (slotEnd > apptStart && slotEnd <= apptEnd) || 
+          (currentTime <= apptStart && slotEnd >= apptEnd)
+        );
       });
 
       if (!isBusy && (isBefore(slotEnd, endTime) || isEqual(slotEnd, endTime))) {
         slots.push(new Date(currentTime));
       }
-
-      currentTime = addMinutes(currentTime, 30);
+      currentTime = addMinutes(currentTime, 15);
     }
     return slots;
   };
 
   const availableSlots = generateTimeSlots();
-
-  const morningSlots = availableSlots.filter(slot => slot.getHours() < AFTERNOON_START);
-  const afternoonSlots = availableSlots.filter(slot => slot.getHours() >= AFTERNOON_START);
+  const morningSlots = availableSlots.filter(slot => slot.getHours() < 12);
+  const afternoonSlots = availableSlots.filter(slot => slot.getHours() >= 12);
 
   const handleConfirm = () => {
     if (selectedTime) {
@@ -105,33 +210,12 @@ export default function TimeSelector({
     }
   };
 
-  const TimeSlotSection = ({ title, slots }: { title: string; slots: Date[] }) => {
-    if (slots.length === 0) return null;
-    
-    return (
-      <div className="max-w-md mx-auto px-4 mb-6">
-        <h4 className="text-sm font-medium text-gray-500 mb-3">{title}</h4>
-        <div className="grid grid-cols-4 gap-3">
-          {slots.map((time, i) => {
-            const isSelected = selectedTime?.toISOString() === time.toISOString();
-            return (
-              <button
-                key={i}
-                onClick={() => setSelectedTime(time)}
-                className={`min-w-[80px] py-3 px-3 rounded-xl text-sm font-semibold transition-all text-center
-                  ${isSelected 
-                    ? "bg-blue-600 text-white shadow-md scale-105" 
-                    : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-100"
-                  }`}
-              >
-                {format(time, 'h:mm aa')}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  const MAX_DAYS_IN_ADVANCE = 60;
+
+  const startOfView = addDays(selectedDate, -1);
+  const effectiveStartOfView = isBefore(startOfView, startOfDay(new Date())) 
+    ? startOfDay(new Date()) 
+    : startOfView;
 
   return (
     <div className="max-w-md mx-auto">
@@ -166,7 +250,7 @@ export default function TimeSelector({
         </h3>
         <div className="flex gap-2">
           <button
-            onClick={() => setSelectedDate(addDays(selectedDate, -1))}
+            onClick={() => { setSelectedDate(addDays(selectedDate, -1)); setSelectedTime(null); }}
             disabled={isBefore(addDays(selectedDate, -1), startOfDay(new Date()))}
             className="p-2 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             aria-label="Día anterior"
@@ -174,8 +258,9 @@ export default function TimeSelector({
             <ChevronLeft className="w-5 h-5 text-gray-600" />
           </button>
           <button
-            onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+            onClick={() => { setSelectedDate(addDays(selectedDate, 1)); setSelectedTime(null); }}
+            disabled={isBefore(addDays(startOfDay(new Date()), MAX_DAYS_IN_ADVANCE), addDays(selectedDate, 1))}
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Día siguiente"
           >
             <ChevronRight className="w-5 h-5 text-gray-600" />
@@ -185,32 +270,33 @@ export default function TimeSelector({
 
       <div className="flex gap-2 overflow-x-auto py-4 scrollbar-hide relative -mx-4 px-4">
         {[0, 1, 2, 3, 4, 5, 6].map((offset) => {
-          const date = addDays(new Date(), offset);
+          const date = addDays(effectiveStartOfView, offset);
           const isSelected = startOfDay(date).toISOString() === startOfDay(selectedDate).toISOString();
           const isCurrentDay = isToday(date);
           
-          let opacity = 1;
-          if (!isSelected) {
-            const selectedOffset = Math.floor((selectedDate.getTime() - startOfDay(new Date()).getTime()) / (1000 * 60 * 60 * 24));
-            const distance = Math.abs(offset - selectedOffset);
-            opacity = Math.max(0.3, 1 - (distance * 0.15));
-          }
+          const dateStr = format(date, "yyyy-MM-dd");
+          const isBlocked = blockedDates.includes(dateStr);
+          const dayConfig = businessHours.find(h => h.day_of_week === getDay(date));
+          const isInactive = !dayConfig?.is_active;
+          const isDisabled = isBlocked || isInactive;
           
           return (
             <button
               key={offset}
-              onClick={() => setSelectedDate(date)}
-              style={{ opacity }}
+              onClick={() => { setSelectedDate(date); setSelectedTime(null); }}
               className={`min-w-[64px] px-2 py-3 rounded-2xl flex flex-col items-center transition-all shrink-0
                 ${isSelected 
                   ? "bg-black text-white shadow-md scale-105" 
                   : "bg-gray-50 text-gray-600 hover:bg-gray-100 border border-transparent"
-                }`}
+                }
+                ${isDisabled && !isSelected ? "grayscale opacity-50" : ""}
+              `}
             >
-              <span className="text-xs font-medium mb-1 opacity-80">
+              <span className={`text-xs font-medium mb-1 ${isSelected ? "opacity-80" : "opacity-50"}`}>
                 {isCurrentDay ? 'Hoy' : format(date, 'EEE', { locale: es })}
               </span>
               <span className="text-xl font-bold">{format(date, 'd')}</span>
+              {isDisabled && <span className="text-[10px] text-red-500 font-bold mt-1">NO</span>}
             </button>
           );
         })}
@@ -227,14 +313,14 @@ export default function TimeSelector({
                 ))}
               </div>
             </div>
-            <div>
-              <div className="h-4 w-20 bg-gray-100 rounded mb-3"></div>
-              <div className="grid grid-cols-4 gap-3">
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="h-12 bg-gray-50 rounded-xl border border-gray-100"></div>
-                ))}
-              </div>
+          </div>
+        ) : isDayBlocked || !dayConfig?.is_active ? (
+          <div className="flex flex-col items-center justify-center py-12 px-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-3 text-3xl">
+              😴
             </div>
+            <p className="text-gray-900 font-bold text-lg">Ronald no trabaja este día</p>
+            <p className="text-gray-500 text-sm mt-1">Por favor selecciona otra fecha</p>
           </div>
         ) : availableSlots.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
@@ -246,8 +332,8 @@ export default function TimeSelector({
           </div>
         ) : (
           <>
-            <TimeSlotSection title="Mañana" slots={morningSlots} />
-            <TimeSlotSection title="Tarde" slots={afternoonSlots} />
+            <TimeSlotSection title="Mañana" slots={morningSlots} selectedTime={selectedTime} onSelectTime={setSelectedTime} />
+            <TimeSlotSection title="Tarde" slots={afternoonSlots} selectedTime={selectedTime} onSelectTime={setSelectedTime} />
           </>
         )}
       </div>

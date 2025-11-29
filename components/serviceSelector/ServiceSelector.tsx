@@ -33,8 +33,9 @@ export default function ServiceSelector({ onSelect }: ServiceSelectorProps) {
         .select('*')
         .order('price', { ascending: true });
 
-      if (error) console.error('Error:', error);
-      else setServices(data || []);
+      if (error) {
+        // Error silencioso
+      } else setServices(data || []);
       setLoading(false);
     };
     fetchServices();
