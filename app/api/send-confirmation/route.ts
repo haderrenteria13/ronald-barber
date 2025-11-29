@@ -1,22 +1,32 @@
 import { NextResponse } from 'next/server';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: Request) {
   try {
+    
+    const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+    
+    const rateLimit = await checkRateLimit(ip);
+    
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { success: false, error: "Demasiados intentos. Por favor espera un minuto." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { clientName, clientPhone, serviceName, date, time } = body;
 
-    // URL de tu servidor del bot (en local es http://localhost:3001)
-    // En producción será la URL de Google Cloud Run
     const BOT_URL = process.env.WHATSAPP_BOT_URL || 'http://localhost:3001';
 
-    const message = `Hola ${clientName}, tu cita para *${serviceName}* en Ronald Barber está confirmada para el *${date}* a las *${time}*. ¡Te esperamos! 💈`;
+    const message = `Entonces mi rey ${clientName}, tu cita para *${serviceName}* en Ronald Barber está confirmada para el *${date}* a las *${time}*. ¡Te esperamos! 💈`;
 
-    // Llamar al servidor del Bot
     const response = await fetch(`${BOT_URL}/enviar-mensaje`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        phone: clientPhone.replace(/\D/g, ''), // Solo números
+        phone: clientPhone.replace(/\D/g, ''), 
         message: message
       })
     });
@@ -25,12 +35,9 @@ export async function POST(request: Request) {
       throw new Error('Error al comunicarse con el servidor del bot');
     }
 
-    console.log("📨 Mensaje enviado vía Bot a:", clientPhone);
 
     return NextResponse.json({ success: true, message: "Mensaje enviado" });
-  } catch (error) {
-    console.error("Error enviando mensaje:", error);
-    // No fallamos la petición completa, solo logueamos el error
+  } catch {
     return NextResponse.json({ success: false, error: "Error al enviar mensaje" }, { status: 200 });
   }
 }
