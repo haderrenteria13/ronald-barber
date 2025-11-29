@@ -18,25 +18,21 @@ export default function Home() {
     clientName: '',
   });
 
-  // Paso 1: Selección de Servicio
   const handleServiceSelect = (id: number, name: string, price: number, duration: number) => {
     setBookingData({ ...bookingData, serviceId: id, serviceName: name, servicePrice: price, serviceDuration: duration });
     setStep(2);
   };
 
-  // Paso 2: Selección de Hora
   const handleTimeSelect = (date: Date) => {
     setBookingData({ ...bookingData, date });
     setStep(3);
   };
 
-  // Paso 3: Confirmación y Guardado
   const handleBookingSuccess = (clientName: string) => {
     setBookingData({ ...bookingData, clientName });
     setStep(4);
   };
 
-  // Paso 4: Nueva Reserva (Reset)
   const handleNewBooking = () => {
     setStep(1);
     setBookingData({
@@ -53,14 +49,12 @@ export default function Home() {
     <main className="min-h-screen">
       {step !== 4 && <Navbar />}
 
-      {/* Paso 1: Selector de Servicios */}
       {step === 1 && (
         <ServiceSelector 
           onSelect={handleServiceSelect} 
         />
       )}
 
-      {/* Paso 2: Selector de Hora */}
       {step === 2 && (
         <div className="p-4">
           <div className="max-w-md mx-auto">
@@ -82,7 +76,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Paso 3: Formulario de Contacto */}
       {step === 3 && bookingData.serviceId && bookingData.date && (
         <div className="p-4">
           <div className="max-w-md mx-auto">
@@ -107,7 +100,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Paso 4: Pantalla de Confirmación */}
       {step === 4 && bookingData.date && (
         <div className="p-4 animate-in fade-in zoom-in duration-500">
           <ConfirmationScreen
