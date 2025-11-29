@@ -171,7 +171,7 @@ export default function AdminDashboard() {
         <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
-              <Image src="/logo.png" alt="Logo" width={40} height={40} />
+              <Image src="/og-image.png" alt="Logo" width={40} height={40} />
             </div>
             <div>
               <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none">Bienvenido</h1>

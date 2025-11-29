@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { Lock, Mail, Loader2, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 
@@ -11,6 +11,8 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  const supabase = createClient();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,16 +20,16 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (signInError) throw signInError;
+        if (signInError) throw signInError;
 
-      if (data.user) {
-        router.push("/admin/dashboard");
-      }
+        if (data.user) {
+          router.push("/admin/dashboard");
+        }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Error al iniciar sesión";
       setError(errorMessage);
@@ -44,11 +46,12 @@ export default function AdminLogin() {
             <button
               onClick={() => router.push("/")}
               className="w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-xl transition-all text-gray-600"
+              title="Ir a atras"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
-               <Image src="/logo.png" alt="Logo" width={40} height={40} />
+               <Image src="/og-image.png" alt="Logo" width={40} height={40} />
             </div>
             <div>
               <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none">Bienvenido</h1>

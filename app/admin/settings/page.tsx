@@ -282,11 +282,12 @@ export default function AdminSettings() {
             <button
               onClick={() => router.push("/admin/dashboard")}
               className="w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-xl transition-all text-gray-600"
+              title="Ir a el Dashboard"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
-               <Image src="/logo.png" alt="Logo" width={40} height={40} />
+               <Image src="/og-image.png" alt="Logo" width={40} height={40} />
             </div>
             <div>
               <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none">Configuración</h1>
@@ -339,6 +340,7 @@ export default function AdminSettings() {
                         checked={hour.is_active}
                         onChange={() => handleToggleDay(hour.day_of_week)}
                         className="sr-only peer"
+                        placeholder="Activar/desactivar fecha"
                       />
                       <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 peer-focus:ring-offset-2 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
                     </label>
