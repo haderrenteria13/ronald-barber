@@ -77,7 +77,7 @@
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/tu-usuario/ronald-barber.git
+git clone https://github.com/haderrenteria13/ronald-barber.git
 cd ronald-barber
 ```
 
