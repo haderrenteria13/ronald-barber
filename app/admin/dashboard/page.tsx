@@ -320,8 +320,6 @@ export default function AdminDashboard() {
                       </div>
                     )}
                   </div>
-
-                  {/* Notes display removed */}
                 </div>
               );
             })

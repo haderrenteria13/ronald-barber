@@ -157,20 +157,15 @@ export default function TimeSelector({
       breakStart = setMinutes(setHours(selectedDate, bStartH), bStartM);
       breakEnd = setMinutes(setHours(selectedDate, bEndH), bEndM);
     }
-
-    // 1. Puntos de inicio potenciales: 
-    // - Intervalos regulares cada 30 min (para llenar días vacíos)
-    // - Fin de cada cita existente (para lógica Lego estricta)
+    
     const potentialStartTimes = [];
     
-    // Generar intervalos regulares cada 30 min
     let tempTime = new Date(businessStart);
     while (isBefore(tempTime, businessEnd)) {
       potentialStartTimes.push(new Date(tempTime));
       tempTime = addMinutes(tempTime, 30);
     }
 
-    // Agregar fin de citas existentes (Lego)
     busySlots.forEach(appt => {
       const apptEnd = new Date(appt.end_time);
       if (isBefore(apptEnd, businessEnd) || isEqual(apptEnd, businessEnd)) {
@@ -178,7 +173,6 @@ export default function TimeSelector({
       }
     });
 
-    // Ordenar cronológicamente y eliminar duplicados
     potentialStartTimes.sort((a, b) => a.getTime() - b.getTime());
 
     const validSlots: Date[] = [];
@@ -186,17 +180,12 @@ export default function TimeSelector({
       index === 0 || time.getTime() !== self[index - 1].getTime()
     );
 
-    // 2. Validar cada punto de inicio
     uniqueStartTimes.forEach(startTime => {
-      // Si ya pasó la hora actual (para el día de hoy), ignorar
       if (isBefore(startTime, now)) return;
 
       const slotEnd = addMinutes(startTime, selectedServiceDuration);
-
-      // Verificar si termina después del cierre
       if (isBefore(businessEnd, slotEnd)) return;
 
-      // Verificar colisión con el descanso (si existe)
       if (breakStart && breakEnd) {
         if (
           (startTime >= breakStart && startTime < breakEnd) ||
@@ -207,12 +196,10 @@ export default function TimeSelector({
         }
       }
 
-      // Verificar colisión con otras citas
-      const isBusy = busySlots.some((appt) => {
+        const isBusy = busySlots.some((appt) => {
         const apptStart = new Date(appt.start_time);
         const apptEnd = new Date(appt.end_time);
         
-        // Verificación estricta de solapamiento
         return (
           (startTime >= apptStart && startTime < apptEnd) || 
           (slotEnd > apptStart && slotEnd <= apptEnd) || 
