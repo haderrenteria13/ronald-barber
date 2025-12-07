@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 import { Calendar, LogOut, Settings, X, TrendingUp, Phone, Loader2, AlertCircle } from "lucide-react";
 import { format, isToday, parseISO } from "date-fns";
@@ -26,6 +26,7 @@ interface Appointment {
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const supabase = createClient();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"today" | "upcoming" | "past">("today");
@@ -320,11 +321,7 @@ export default function AdminDashboard() {
                     )}
                   </div>
 
-                  {apt.notes && (
-                    <div className="mt-3 pt-3 border-t border-gray-50">
-                      <p className="text-xs text-gray-500 italic">&quot;{apt.notes}&quot;</p>
-                    </div>
-                  )}
+                  {/* Notes display removed */}
                 </div>
               );
             })

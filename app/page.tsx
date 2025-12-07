@@ -21,16 +21,19 @@ export default function Home() {
   const handleServiceSelect = (id: number, name: string, price: number, duration: number) => {
     setBookingData({ ...bookingData, serviceId: id, serviceName: name, servicePrice: price, serviceDuration: duration });
     setStep(2);
+    window.scrollTo(0, 0);
   };
 
   const handleTimeSelect = (date: Date) => {
     setBookingData({ ...bookingData, date });
     setStep(3);
+    window.scrollTo(0, 0);
   };
 
   const handleBookingSuccess = (clientName: string) => {
     setBookingData({ ...bookingData, clientName });
     setStep(4);
+    window.scrollTo(0, 0);
   };
 
   const handleNewBooking = () => {

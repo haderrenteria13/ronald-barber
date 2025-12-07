@@ -3,7 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { User, Phone, MessageSquare, Loader2 } from "lucide-react";
+import { User, Phone, Loader2 } from "lucide-react";
 import Image from "next/image";
 
 const getServiceImage = (name: string) => {
@@ -35,7 +35,6 @@ export default function ContactForm({
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
-    notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -70,7 +69,7 @@ export default function ContactForm({
             service_id: serviceId,
             client_name: formData.name,
             client_phone: formData.phone,
-            notes: formData.notes || null,
+            notes: null, // Removed notes field
             start_time: selectedDate.toISOString(),
             end_time: endTime.toISOString(),
           },
@@ -192,23 +191,6 @@ export default function ContactForm({
           )}
         </div>
 
-        <div>
-          <label htmlFor="notes" className="block text-sm font-semibold text-gray-700 mb-2">
-            Notas adicionales (opcional)
-          </label>
-          <div className="relative">
-            <MessageSquare className="absolute right-4 top-4 w-4 h-4 text-gray-400" />
-            <textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full pl-4 pr-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all resize-none bg-white"
-              placeholder="Algún comentario especial..."
-              rows={3}
-            />
-          </div>
-        </div>
-
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
             {error}
@@ -222,9 +204,9 @@ export default function ContactForm({
             className="w-full py-4 px-6 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-[0.98]"
           >
             {loading ? (
-              <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-                      Confirmando...
+              <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      <span>Confirmando...</span>
                 </div>
             ) : (
               "Confirmar Reserva"
