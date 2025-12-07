@@ -141,12 +141,11 @@ export default function TimeSelector({
   const generateTimeSlots = () => {
     if (!dayConfig || !dayConfig.is_active || isDayBlocked) return [];
 
-    const slots = [];
     const [startHour, startMinute] = dayConfig.start_time.split(':').map(Number);
     const [endHour, endMinute] = dayConfig.end_time.split(':').map(Number);
 
-    let currentTime = setMinutes(setHours(selectedDate, startHour), startMinute);
-    const endTime = setMinutes(setHours(selectedDate, endHour), endMinute);
+    const businessStart = setMinutes(setHours(selectedDate, startHour), startMinute);
+    const businessEnd = setMinutes(setHours(selectedDate, endHour), endMinute);
     const now = new Date();
 
     let breakStart: Date | null = null;
@@ -159,45 +158,74 @@ export default function TimeSelector({
       breakEnd = setMinutes(setHours(selectedDate, bEndH), bEndM);
     }
 
-    while (isBefore(currentTime, endTime)) {
-      const slotEnd = addMinutes(currentTime, selectedServiceDuration);
+    // 1. Puntos de inicio potenciales: 
+    // - Intervalos regulares cada 30 min (para llenar días vacíos)
+    // - Fin de cada cita existente (para lógica Lego estricta)
+    const potentialStartTimes = [];
+    
+    // Generar intervalos regulares cada 30 min
+    let tempTime = new Date(businessStart);
+    while (isBefore(tempTime, businessEnd)) {
+      potentialStartTimes.push(new Date(tempTime));
+      tempTime = addMinutes(tempTime, 30);
+    }
 
-      if (isBefore(currentTime, now)) {
-        currentTime = addMinutes(currentTime, 30);
-        continue;
+    // Agregar fin de citas existentes (Lego)
+    busySlots.forEach(appt => {
+      const apptEnd = new Date(appt.end_time);
+      if (isBefore(apptEnd, businessEnd) || isEqual(apptEnd, businessEnd)) {
+        potentialStartTimes.push(apptEnd);
       }
+    });
 
-      let inBreak = false;
+    // Ordenar cronológicamente y eliminar duplicados
+    potentialStartTimes.sort((a, b) => a.getTime() - b.getTime());
+
+    const validSlots: Date[] = [];
+    const uniqueStartTimes = potentialStartTimes.filter((time, index, self) => 
+      index === 0 || time.getTime() !== self[index - 1].getTime()
+    );
+
+    // 2. Validar cada punto de inicio
+    uniqueStartTimes.forEach(startTime => {
+      // Si ya pasó la hora actual (para el día de hoy), ignorar
+      if (isBefore(startTime, now)) return;
+
+      const slotEnd = addMinutes(startTime, selectedServiceDuration);
+
+      // Verificar si termina después del cierre
+      if (isBefore(businessEnd, slotEnd)) return;
+
+      // Verificar colisión con el descanso (si existe)
       if (breakStart && breakEnd) {
         if (
-          (currentTime >= breakStart && currentTime < breakEnd) ||
-          (slotEnd > breakStart && slotEnd <= breakEnd)
+          (startTime >= breakStart && startTime < breakEnd) ||
+          (slotEnd > breakStart && slotEnd <= breakEnd) ||
+          (startTime <= breakStart && slotEnd >= breakEnd)
         ) {
-          inBreak = true;
+          return;
         }
       }
 
-      if (inBreak) {
-        currentTime = addMinutes(currentTime, 30);
-        continue;
-      }
-
+      // Verificar colisión con otras citas
       const isBusy = busySlots.some((appt) => {
         const apptStart = new Date(appt.start_time);
         const apptEnd = new Date(appt.end_time);
+        
+        // Verificación estricta de solapamiento
         return (
-          (currentTime >= apptStart && currentTime < apptEnd) || 
+          (startTime >= apptStart && startTime < apptEnd) || 
           (slotEnd > apptStart && slotEnd <= apptEnd) || 
-          (currentTime <= apptStart && slotEnd >= apptEnd)
+          (startTime <= apptStart && slotEnd >= apptEnd)
         );
       });
 
-      if (!isBusy && (isBefore(slotEnd, endTime) || isEqual(slotEnd, endTime))) {
-        slots.push(new Date(currentTime));
+      if (!isBusy) {
+        validSlots.push(startTime);
       }
-      currentTime = addMinutes(currentTime, 15);
-    }
-    return slots;
+    });
+
+    return validSlots;
   };
 
   const availableSlots = generateTimeSlots();
