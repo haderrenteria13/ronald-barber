@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: "Ronald Barber | Estilo y Elegancia",
     description: "Agenda tu cita con Ronald Barber. Cortes de cabello, barba y estilo profesional.",
-    images: ['/og-image.jpg'],
+    images: ['/og-image.png'],
   },
   icons: {
     icon: '/icon.png',

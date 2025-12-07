@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { ArrowLeft, Clock, Loader2, Trash2, Coffee, X, CheckCircle, AlertCircle } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import { format } from "date-fns";
@@ -29,6 +29,7 @@ const DAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "
 
 export default function AdminSettings() {
   const router = useRouter();
+  const supabase = createClient();
   const [activeTab, setActiveTab] = useState<"schedule" | "blocked">("schedule");
   const [businessHours, setBusinessHours] = useState<BusinessHour[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
