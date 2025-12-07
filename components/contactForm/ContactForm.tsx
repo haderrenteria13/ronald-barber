@@ -182,7 +182,7 @@ export default function ContactForm({
                 setFormData({ ...formData, phone: formatted });
               }}
               className="w-full pl-4 pr-12 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all bg-white"
-              placeholder="300 123 4567"
+              placeholder="Aqui tu numero"
               required
             />
           </div>
